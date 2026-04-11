@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from deerflow.models.patched_openai import _strip_unsupported_extra_body
 
-
 # ---------------------------------------------------------------------------
 # _strip_unsupported_extra_body
 # ---------------------------------------------------------------------------
