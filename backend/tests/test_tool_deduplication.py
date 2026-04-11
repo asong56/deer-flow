@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from langchain_core.tools import BaseTool, tool
 
 from deerflow.tools.tools import get_available_tools
