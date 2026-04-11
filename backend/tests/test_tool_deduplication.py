@@ -50,7 +50,7 @@ def _tool_beta(x: str) -> str:
 def _make_minimal_config(tools):
     """Return an AppConfig-like mock with the given tools list."""
     config = MagicMock()
-    config.tools = []  # no config-file tools
+    config.tools = tools
     config.models = []
     config.tool_search.enabled = False
     config.sandbox = MagicMock()
