@@ -46,8 +46,9 @@ from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
-# Keys inside ``extra_body`` that the Google OpenAI-compatible endpoint does
-# not recognise.  Sending any of these causes HTTP 400 INVALID_ARGUMENT.
+# ``extra_body`` keys to remove when building requests for the Google
+# OpenAI-compatible Gemini path. Sending any of these causes HTTP 400
+# INVALID_ARGUMENT there, but this constant itself carries no endpoint context.
 _GEMINI_OPENAI_COMPAT_UNSUPPORTED_EXTRA_BODY_KEYS: frozenset[str] = frozenset(
     {"thinking"}
 )
@@ -131,11 +132,15 @@ class PatchedChatOpenAI(ChatOpenAI):
 
 
 def _strip_unsupported_extra_body(payload: dict) -> dict:
-    """Remove ``extra_body`` keys unsupported by the Gemini OpenAI-compat endpoint.
+    """Remove module-defined unsupported keys from ``payload["extra_body"]``.
 
-    Google's official OpenAI-compatible endpoint rejects certain fields (e.g.
-    ``thinking``) that only apply to the native Gemini SDK path.  This helper
-    removes those keys to prevent HTTP 400 errors (issue #1515).
+    This helper strips any keys listed in
+    ``_GEMINI_OPENAI_COMPAT_UNSUPPORTED_EXTRA_BODY_KEYS`` whenever they appear
+    in ``extra_body``. It does not determine which endpoint is being targeted;
+    any endpoint-specific decision about whether this cleanup is appropriate
+    must be made by the caller. This keeps the helper's behaviour aligned with
+    its implementation while still avoiding HTTP 400 errors for Gemini
+    OpenAI-compatible requests (issue #1515).
 
     The ``payload`` dict is never mutated in-place; a new dict is returned only
     when a modification is needed.
@@ -149,7 +154,7 @@ def _strip_unsupported_extra_body(payload: dict) -> dict:
         return payload
 
     logger.debug(
-        "Stripping unsupported extra_body key(s) for Gemini OpenAI-compat endpoint: %s",
+        "Stripping configured unsupported extra_body key(s): %s",
         sorted(keys_to_remove),
     )
 
