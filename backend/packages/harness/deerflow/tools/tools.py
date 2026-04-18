@@ -68,8 +68,7 @@ def get_available_tools(
     for cfg, loaded in loaded_tools_raw:
         if cfg.name != loaded.name:
             logger.warning(
-                "Tool name mismatch: config name %r does not match tool .name %r "
-                "(use: %s). The tool's own .name will be used for binding.",
+                "Tool name mismatch: config name %r does not match tool .name %r (use: %s). The tool's own .name will be used for binding.",
                 cfg.name,
                 loaded.name,
                 cfg.use,
@@ -82,6 +81,7 @@ def get_available_tools(
     skill_evolution_config = getattr(config, "skill_evolution", None)
     if getattr(skill_evolution_config, "enabled", False):
         from deerflow.tools.skill_manage_tool import skill_manage_tool
+        
         builtin_tools.append(skill_manage_tool)
 
     # Add subagent tools only if enabled via runtime parameter
@@ -162,8 +162,7 @@ def get_available_tools(
             seen_names.add(t.name)
         else:
             logger.warning(
-                "Duplicate tool name %r detected and skipped — check your config.yaml "
-                "and MCP server registrations (issue #1803).",
+                "Duplicate tool name %r detected and skipped — check your config.yaml and MCP server registrations (issue #1803).",
                 t.name,
             )
     return unique_tools
