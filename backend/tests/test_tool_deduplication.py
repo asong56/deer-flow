@@ -14,7 +14,6 @@ from langchain_core.tools import BaseTool, tool
 
 from deerflow.tools.tools import get_available_tools
 
-
 # ---------------------------------------------------------------------------
 # Fixture tools
 # ---------------------------------------------------------------------------
