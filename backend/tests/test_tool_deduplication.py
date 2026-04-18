@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from langchain_core.tools import BaseTool, tool
+
 from deerflow.tools.tools import get_available_tools
 
 
@@ -102,7 +103,6 @@ def test_duplicate_triggers_warning(mock_reset, mock_bash, mock_cfg, caplog):
     with patch("deerflow.tools.tools.BUILTIN_TOOLS", [_tool_alpha, _tool_alpha_dup]):
         with caplog.at_level(logging.WARNING, logger="deerflow.tools.tools"):
             get_available_tools(include_mcp=False)
-
-    assert any("Duplicate tool name" in r.message for r in caplog.records), (
-        "Expected a duplicate-tool warning in log output"
-    )
+            
+    assert any("Duplicate tool name" in r.message for r in caplog.records), "Expected a duplicate-tool warning in log output" 
+    
