@@ -81,7 +81,7 @@ def get_available_tools(
     skill_evolution_config = getattr(config, "skill_evolution", None)
     if getattr(skill_evolution_config, "enabled", False):
         from deerflow.tools.skill_manage_tool import skill_manage_tool
-        
+
         builtin_tools.append(skill_manage_tool)
 
     # Add subagent tools only if enabled via runtime parameter
