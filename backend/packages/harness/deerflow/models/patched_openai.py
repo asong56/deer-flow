@@ -49,9 +49,7 @@ logger = logging.getLogger(__name__)
 # ``extra_body`` keys to remove when building requests for the Google
 # OpenAI-compatible Gemini path. Sending any of these causes HTTP 400
 # INVALID_ARGUMENT there, but this constant itself carries no endpoint context.
-_GEMINI_OPENAI_COMPAT_UNSUPPORTED_EXTRA_BODY_KEYS: frozenset[str] = frozenset(
-    {"thinking"}
-)
+_GEMINI_OPENAI_COMPAT_UNSUPPORTED_EXTRA_BODY_KEYS: frozenset[str] = frozenset({"thinking"})
 
 
 class PatchedChatOpenAI(ChatOpenAI):
