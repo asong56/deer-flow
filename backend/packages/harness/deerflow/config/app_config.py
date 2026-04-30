@@ -11,10 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from deerflow.config.acp_config import load_acp_config_from_dict
 from deerflow.config.agents_api_config import AgentsApiConfig, load_agents_api_config_from_dict
 from deerflow.config.checkpointer_config import CheckpointerConfig, load_checkpointer_config_from_dict
+from deerflow.config.database_config import DatabaseConfig
 from deerflow.config.extensions_config import ExtensionsConfig
 from deerflow.config.guardrails_config import GuardrailsConfig, load_guardrails_config_from_dict
 from deerflow.config.memory_config import MemoryConfig, load_memory_config_from_dict
 from deerflow.config.model_config import ModelConfig
+from deerflow.config.run_events_config import RunEventsConfig
 from deerflow.config.sandbox_config import SandboxConfig
 from deerflow.config.skill_evolution_config import SkillEvolutionConfig
 from deerflow.config.skills_config import SkillsConfig
@@ -31,6 +33,12 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+CONFIG_FILE_DATABASE_DEFAULTS = {
+    "backend": "sqlite",
+    "sqlite_dir": ".deer-flow/data",
+}
+
+
 class CircuitBreakerConfig(BaseModel):
     """Configuration for the LLM Circuit Breaker."""
 
@@ -45,10 +53,34 @@ def _default_config_candidates() -> tuple[Path, ...]:
     return (backend_dir / "config.yaml", repo_root / "config.yaml")
 
 
+def logging_level_from_config(name: str | None) -> int:
+    """Map ``config.yaml`` ``log_level`` string to a :mod:`logging` level constant."""
+    mapping = logging.getLevelNamesMapping()
+    return mapping.get((name or "info").strip().upper(), logging.INFO)
+
+
+def apply_logging_level(name: str | None) -> None:
+    """Resolve *name* to a logging level and apply it to the ``deerflow``/``app`` logger hierarchies.
+
+    Only the ``deerflow`` and ``app`` logger levels are changed so that
+    third-party library verbosity (e.g. uvicorn, sqlalchemy) is not
+    affected. Root handler levels are lowered (never raised) so that
+    messages from the configured loggers can propagate through without
+    being filtered, while preserving handler thresholds that may be
+    intentionally restrictive for third-party log output.
+    """
+    level = logging_level_from_config(name)
+    for logger_name in ("deerflow", "app"):
+        logging.getLogger(logger_name).setLevel(level)
+    for handler in logging.root.handlers:
+        if level < handler.level:
+            handler.setLevel(level)
+
+
 class AppConfig(BaseModel):
     """Config for the DeerFlow application"""
 
-    log_level: str = Field(default="info", description="Logging level for deerflow modules (debug/info/warning/error)")
+    log_level: str = Field(default="info", description="Logging level for deerflow and app modules (debug/info/warning/error); third-party libraries are not affected")
     token_usage: TokenUsageConfig = Field(default_factory=TokenUsageConfig, description="Token usage tracking configuration")
     models: list[ModelConfig] = Field(default_factory=list, description="Available models")
     sandbox: SandboxConfig = Field(description="Sandbox configuration")
@@ -65,7 +97,9 @@ class AppConfig(BaseModel):
     subagents: SubagentsAppConfig = Field(default_factory=SubagentsAppConfig, description="Subagent runtime configuration")
     guardrails: GuardrailsConfig = Field(default_factory=GuardrailsConfig, description="Guardrail middleware configuration")
     circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig, description="LLM circuit breaker configuration")
-    model_config = ConfigDict(extra="allow", frozen=False)
+    model_config = ConfigDict(extra="allow")
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="Unified database backend configuration")
+    run_events: RunEventsConfig = Field(default_factory=RunEventsConfig, description="Run event storage configuration")
     checkpointer: CheckpointerConfig | None = Field(default=None, description="Checkpointer configuration")
     stream_bridge: StreamBridgeConfig | None = Field(default=None, description="Stream bridge configuration")
 
@@ -114,6 +148,7 @@ class AppConfig(BaseModel):
         cls._check_config_version(config_data, resolved_path)
 
         config_data = cls.resolve_env_variables(config_data)
+        cls._apply_database_defaults(config_data)
 
         # Load title config if present
         if "title" in config_data:
@@ -164,6 +199,18 @@ class AppConfig(BaseModel):
 
         result = cls.model_validate(config_data)
         return result
+
+    @classmethod
+    def _apply_database_defaults(cls, config_data: dict[str, Any]) -> None:
+        """Apply config.yaml defaults for persistence when the section is absent."""
+        database_config = config_data.get("database")
+        if database_config is None:
+            database_config = {}
+            config_data["database"] = database_config
+        if not isinstance(database_config, dict):
+            return
+        for key, value in CONFIG_FILE_DATABASE_DEFAULTS.items():
+            database_config.setdefault(key, value)
 
     @classmethod
     def _check_config_version(cls, config_data: dict, config_path: Path) -> None:
@@ -269,6 +316,9 @@ class AppConfig(BaseModel):
         return next((group for group in self.tool_groups if group.name == name), None)
 
 
+# Compatibility singleton layer for code paths that have not yet been
+# migrated to explicit ``AppConfig`` threading. New composition roots should
+# prefer constructing ``AppConfig`` once and passing it down directly.
 _app_config: AppConfig | None = None
 _app_config_path: Path | None = None
 _app_config_mtime: float | None = None
